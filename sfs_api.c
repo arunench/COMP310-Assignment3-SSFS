@@ -357,14 +357,23 @@ int ssfs_fopen(char *name){
         }
     }
 
+    if (file_exists == 1){
+    	int existing_fd_index;
+    	for(int i = 0; i < SSFS_NUM_INODES; i++){
+    		if(fd_table[i].inode_num == file.inode_num){
+    			existing_fd_index = i;
+    			break;
+    		}
+    	}
+    	return existing_fd_index;
+    }
+
     if (file_exists == 0){
         printf("Your file: %s, does not exist, must be added to the root directory\n", name);
         file = add_file(name);
     }
 
-    if (file_exists == 1){
 
-    }
 
 	int file_descriptor_index = find_unused_file_descp_index();
 	fd_table[file_descriptor_index].inode_num = file.inode_num;
@@ -375,7 +384,28 @@ int ssfs_fopen(char *name){
 }
 
 int ssfs_fclose(int fileID){
-    return 0;
+
+	file_descriptor_t close_file;
+
+	if (fileID > 0 && fileID < SSFS_NUM_INODES){
+
+		
+		if (fd_table[fileID].inode_num == -1){
+			printf("The file is already closed\n");
+			return -1; // The file is already closed
+		}
+
+		// If the file is not closed
+
+		fd_table[fileID].inode_num = -1;
+		fd_table[fileID].read_ptr = 0;
+		fd_table[fileID].write_ptr = 0;
+		printf("fileID %d is now closed\n", fileID);
+		return 0;
+
+	}
+
+    return -1;
 }
 
 int ssfs_frseek(int fileID, int loc){
@@ -401,7 +431,15 @@ int ssfs_remove(char *file){
 int main(int argc, char *argv[]){
     mkssfs(1);
     // Adding a file for testing     
-    int fd_index = ssfs_fopen("arunen");
-    printf("The fd_index for arunen is %d\n", fd_index);  
+    int fd_index1 = ssfs_fopen("arunen");
+    int fd_index2 = ssfs_fopen("alex");
+    int fd_index3 = ssfs_fopen("oliver");
+    printf("The fd_index for arunen is %d\n", fd_index1); 
+    ssfs_fclose(fd_index2);
+    ssfs_fclose(fd_index2);
+    ssfs_fopen("daven");
+    for (int i = 0; i < 6; i++){
+    	printf("%d\n", fd_table[i].inode_num);
+    }
     return 0;
 }
