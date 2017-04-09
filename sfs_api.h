@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <math.h>
 #include "disk_emu.h"
 
 #define SSFS_MAX_FILENAME 16

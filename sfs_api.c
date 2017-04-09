@@ -195,12 +195,10 @@ int ssfs_get_file_size(char* path){
 }
 
 directory_t add_file(char* filename){
-    printf("Your file will now be added to the root directory and assigned an inode number\n");
 
     // Create a new directory entry type
     directory_t new_entry; 
     new_entry.filename = filename;
-    printf("This is the filename we assigned to the new_entry: %s\n", new_entry.filename);
 
     // Create an inode associated with the file    
     inode_t new_inode;
@@ -291,6 +289,23 @@ int find_unused_file_descp_index(){
 
 }
 
+int find_free_fbm_index(){
+	
+	int fbm_index = 0;
+
+	for (int i = 0; i < SSFS_NUM_BLOCKS-2; i++){
+
+		if(freebitmap[i] == 1){
+			fbm_index = i;
+			break;
+		}
+		
+	}
+
+	return fbm_index;
+
+}
+// Search's root directory and returns the index the given filename is at
 int search_root_dir(char* filename){
 
 		int file_exists = 0;
@@ -314,7 +329,7 @@ int search_root_dir(char* filename){
         }
     }
 
-    return file_exists;
+    return rootdir_index;
 
 }
 // Opens a file and returns an integer that corresponds to the index of the entry
@@ -335,8 +350,7 @@ int ssfs_fopen(char *name){
     int file_exists = 0;
     int rootdir_index;
     directory_t file;
-        
-    printf("Let's see if the file titled %s exists or must be created\n", name);
+    
     // Find if the file is already in the root_dir
    	for(int i = 0; i < SSFS_NUM_INODES - 1; i++){
         
@@ -417,14 +431,78 @@ int ssfs_fwseek(int fileID, int loc){
 }
 
 int ssfs_fwrite(int fileID, char *buf, int length){
-    return 0;
+
+	// If the inode does not exist in the file descriptor table, return and error
+	if(fd_table[fileID].inode_num == -1){
+		return -1;
+	}
+
+
+	char* buf_read = malloc(sizeof(buf));
+	file_descriptor_t file_to_write = fd_table[fileID];
+	
+
+
+
+
+
+	int fbm_index = find_free_fbm_index();
+
+	// 18 is the offset, we can only write after the 4 root_dir and 14 inode blocks
+	int block_index = 18 + (int)((float)file_to_write.write_ptr/(float)SSFS_BLOCK_SIZE); 
+
+	// This finds the data index in respect to that block, for example, data position 2000, would be block 19, data position 976
+	int write_index = file_to_write.write_ptr % SSFS_BLOCK_SIZE;
+
+	if (write_index+length > SSFS_BLOCK_SIZE){
+		printf("This is going to take up a next block\n");
+	}
+
+	// Write to the blocks
+
+	write_blocks(block_index, 1, buf);
+	freebitmap[fbm_index] = 0;
+	file_to_write.write_ptr = file_to_write.write_ptr + length + 18*SSFS_BLOCK_SIZE;
+	fd_table[fileID] = file_to_write;
+	inode_table[file_to_write.inode_num].direct[0] = block_index;
+
+	// Read the content
+
+	char* read_buff = malloc(sizeof(buf));
+	read_blocks(block_index, 1, &read_buff);
+	memcpy(&buf_read, &read_buff, sizeof(buf));
+	printf("This is the content of the block that you wrote to %s\n", &buf_read);
+	// free(read_buff);
+	// free(buf_read);
+
+
+
+
+
+
+    return length;
 }
 
 int ssfs_fread(int fileID, char *buf, int length){
+
+	
+
+
     return 0;
 }
 
 int ssfs_remove(char *file){
+
+	int root_dir_index = search_root_dir(file);
+	directory_t directory_entry = root_dir[root_dir_index];
+	inode_table[directory_entry.inode_num].size = -1; 
+	root_dir[root_dir_index].inode_num = -1;
+	printf("Your file titled %s is now deleted\n", file);
+	// TODO: Release the data blocks used by the file, so that they can be used by new files in the future
+
+
+
+
     return 0;
 }
 
@@ -434,12 +512,11 @@ int main(int argc, char *argv[]){
     int fd_index1 = ssfs_fopen("arunen");
     int fd_index2 = ssfs_fopen("alex");
     int fd_index3 = ssfs_fopen("oliver");
-    printf("The fd_index for arunen is %d\n", fd_index1); 
-    ssfs_fclose(fd_index2);
-    ssfs_fclose(fd_index2);
-    ssfs_fopen("daven");
-    for (int i = 0; i < 6; i++){
-    	printf("%d\n", fd_table[i].inode_num);
-    }
+    ssfs_fwrite(2, "This is a test, let's see if it works!", 37);
+    // ssfs_fclose(fd_index2);
+    // ssfs_fclose(fd_index2);
+    // ssfs_fopen("daven");
+    // ssfs_remove("oliver");
+
     return 0;
 }
