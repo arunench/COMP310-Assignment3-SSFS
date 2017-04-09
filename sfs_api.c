@@ -423,61 +423,67 @@ int ssfs_fclose(int fileID){
 }
 
 int ssfs_frseek(int fileID, int loc){
+
+	if (fileID > SSFS_NUM_INODES){
+		return -1;
+	}
+
+
+
+	if (fd_table[fileID].inode_num == -1){
+		return -1;
+	}
+
+	fd_table[fileID].read_ptr = loc;
+
     return 0;
 }
 
 int ssfs_fwseek(int fileID, int loc){
+
+	if (fileID > SSFS_NUM_INODES){
+		return -1;
+	}
+
+	if (fd_table[fileID].inode_num == -1){
+		return -1;
+	}
+
+	fd_table[fileID].write_ptr = loc;
+
     return 0;
 }
 
 int ssfs_fwrite(int fileID, char *buf, int length){
 
-	// If the inode does not exist in the file descriptor table, return and error
-	if(fd_table[fileID].inode_num == -1){
-		return -1;
-	}
+    // If the inode does not exist in the file descriptor table, return and error
+    if(fd_table[fileID].inode_num == -1){
+        return -1;
+    }
 
 
-	char* buf_read = malloc(sizeof(buf));
-	file_descriptor_t file_to_write = fd_table[fileID];
-	
+    char* buf_read = malloc(sizeof(buf));
+    file_descriptor_t file_to_write = fd_table[fileID];
+    inode_t fileinode = inode_table[file_to_write.inode_num];
+
+    int fbm_index = find_free_fbm_index();
+
+    // Write to a newly created file
+    if (fileinode.size == 0){
+
+    	int block_index = fbm_index; 
+    	write_blocks(block_index, 1, buf);
+    	freebitmap[block_index] = 0;
+    	fileinode.direct[0] = block_index;
+    	file_to_write.write_ptr = length;
+    	fileinode.size = length;
+    	printf("Successfully wrote [%s] to the file!\n", buf);
+
+    }
 
 
-
-
-
-	int fbm_index = find_free_fbm_index();
-
-	// 18 is the offset, we can only write after the 4 root_dir and 14 inode blocks
-	int block_index = 18 + (int)((float)file_to_write.write_ptr/(float)SSFS_BLOCK_SIZE); 
-
-	// This finds the data index in respect to that block, for example, data position 2000, would be block 19, data position 976
-	int write_index = file_to_write.write_ptr % SSFS_BLOCK_SIZE;
-
-	if (write_index+length > SSFS_BLOCK_SIZE){
-		printf("This is going to take up a next block\n");
-	}
-
-	// Write to the blocks
-
-	write_blocks(block_index, 1, buf);
-	freebitmap[fbm_index] = 0;
-	file_to_write.write_ptr = file_to_write.write_ptr + length + 18*SSFS_BLOCK_SIZE;
-	fd_table[fileID] = file_to_write;
-	inode_table[file_to_write.inode_num].direct[0] = block_index;
-
-	// Read the content
-
-	char* read_buff = malloc(sizeof(buf));
-	read_blocks(block_index, 1, &read_buff);
-	memcpy(&buf_read, &read_buff, sizeof(buf));
-	printf("This is the content of the block that you wrote to %s\n", &buf_read);
-	// free(read_buff);
-	// free(buf_read);
-
-
-
-
+    fd_table[fileID] = file_to_write;
+    inode_table[file_to_write.inode_num] = fileinode;
 
 
     return length;
@@ -485,7 +491,28 @@ int ssfs_fwrite(int fileID, char *buf, int length){
 
 int ssfs_fread(int fileID, char *buf, int length){
 
-	
+    // If the inode does not exist in the file descriptor table, return and error
+    if(fd_table[fileID].inode_num == -1){
+        return -1;
+    }
+
+
+    char* buf_read = malloc(sizeof(buf));
+    file_descriptor_t file_to_write = fd_table[fileID];
+    inode_t fileinode = inode_table[file_to_write.inode_num];	
+    int block_index;
+
+
+    if (fileinode.size > 0){
+
+    	block_index = fileinode.direct[0];
+
+        char* read_buffer = malloc(SSFS_BLOCK_SIZE);
+        read_blocks(block_index, 1, read_buffer);
+        printf("This is the content of the file [%s]\n", read_buffer);
+        free(read_buffer);
+    }
+
 
 
     return 0;
@@ -512,7 +539,10 @@ int main(int argc, char *argv[]){
     int fd_index1 = ssfs_fopen("arunen");
     int fd_index2 = ssfs_fopen("alex");
     int fd_index3 = ssfs_fopen("oliver");
+
     ssfs_fwrite(2, "This is a test, let's see if it works!", 37);
+    ssfs_fread(2, "This is a test, let's see if it works!", 37);
+
     // ssfs_fclose(fd_index2);
     // ssfs_fclose(fd_index2);
     // ssfs_fopen("daven");
