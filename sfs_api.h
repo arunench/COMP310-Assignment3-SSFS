@@ -20,7 +20,7 @@
 
 typedef struct{
 	int size;
-	int direct[14];
+	int direct[13];
 	int indirect;
 } inode_t;
 
