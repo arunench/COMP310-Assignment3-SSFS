@@ -538,6 +538,13 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     else if (fileinode.size != 0){
     	printf("Write pointer is now at %d\n", file_to_write.write_ptr);
     	int direct_block_index = (int)(file_to_write.write_ptr/ SSFS_BLOCK_SIZE);
+    	if (fileinode.direct[direct_block_index] == 0){
+    		int free_block = find_free_fbm_index();
+    		printf("assigning the fresh pointer to block %d\n", free_block);
+    		fileinode.direct[direct_block_index] = free_block;
+    		freebitmap[free_block] = 0;
+    	}
+
     	printf("fileinode.direct[%d] = %d\n", direct_block_index, fileinode.direct[direct_block_index]);
 
     	int write_left_off = file_to_write.write_ptr%SSFS_BLOCK_SIZE;
@@ -545,6 +552,7 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     	int bytes_can_write = SSFS_BLOCK_SIZE - write_left_off; 
 
     	char* read_buffer = malloc(SSFS_BLOCK_SIZE + length);
+
 
         read_blocks(fileinode.direct[direct_block_index], 1, read_buffer);
         strcat(read_buffer, buf);
@@ -736,50 +744,56 @@ int ssfs_remove(char *file){
     return 0;
 }
 
-// int main(int argc, char *argv[]){
-//     mkssfs(1);
+int main(int argc, char *argv[]){
+    mkssfs(1);
 
-//     // Adding a file for testing     
-//     int fd_index1 = ssfs_fopen("arunen");
-//     int fd_index2 = ssfs_fopen("alex");
-//     int fd_index3 = ssfs_fopen("oliver");
+    // Adding a file for testing     
+    int fd_index1 = ssfs_fopen("arunen");
+    int fd_index2 = ssfs_fopen("alex");
+    int fd_index3 = ssfs_fopen("oliver");
 
-//     // Write to a newly created file, string under 1024 bytes
-// 	char *buffer1 = "This is a test, let's see if it works!";
-// 	ssfs_fwrite(fd_index2,buffer1,strlen(buffer1));
-//     // ssfs_fread(2,buffer1,strlen(buffer1));
+    // Write to a newly created file, string under 1024 bytes
+	char *buffer1 = "This is a test, let's see if it works!";
+	ssfs_fwrite(fd_index2,buffer1,strlen(buffer1));
+    // ssfs_fread(2,buffer1,strlen(buffer1));
 
-//     // Write to an existing block where the file size is under 1024 bytes
-//     char* appending1 = "Adding this to file 2";
-//     //ssfs_fwrite(fd_index2, appending1, strlen(appending1));
-//     // ssfs_fread(2, appending1, strlen(appending1));
-//     char* onechar = "c";
-//     // Write more than 1024 bytes to a file, must use multiple data blocks
-//     // String size: 1917
-//     char* buffer2 = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen\n";
-// 	char* copy = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
-//     ssfs_fwrite(fd_index3, copy, strlen(copy));
-// 	// ssfs_fread(3, buffer2, strlen(buffer2));
+    // Write to an existing block where the file size is under 1024 bytes
+    char* appending1 = "Adding this to file 2";
+    //ssfs_fwrite(fd_index2, appending1, strlen(appending1));
+    // ssfs_fread(2, appending1, strlen(appending1));
+    char* onechar = "caca";
+    // Write more than 1024 bytes to a file, must use multiple data blocks
+    // String size: 1917
+    char* buffer2 = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen\n";
+	char* copy = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
+    ssfs_fwrite(fd_index3, copy, strlen(copy));
+	// ssfs_fread(3, buffer2, strlen(buffer2));
 
-// 	// Write to an existing file where adding the buffer will overflow into another block 
-//     // String size: 321
-//     char* appending2 = "At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
-//     //ssfs_fwrite(3, appending2, strlen(appending2));
-//     ssfs_fwrite(fd_index2, buffer2, strlen(buffer2));
-//     ssfs_fwrite(fd_index2, copy, strlen(copy));
+	// Write to an existing file where adding the buffer will overflow into another block 
+    // String size: 321
+    char* appending2 = "At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
+    //ssfs_fwrite(3, appending2, strlen(appending2));
+    ssfs_fwrite(fd_index2, buffer2, strlen(buffer2));
+    ssfs_fwrite(fd_index2, copy, strlen(copy));
 
-//     ssfs_fwrite(fd_index3, buffer2, strlen(buffer2));
-//     ssfs_fread(fd_index3, buffer2, strlen(buffer2));
 
-//     // strcat(buffer2, buffer2);
-//     // strcat(buffer2, appending2);
-//     // ssfs_fwrite(3, buffer2, strlen(buffer2));
-//     // ssfs_fread(3, appending2, strlen(appending2));
+    ssfs_fwrite(fd_index3, buffer2, strlen(buffer2));
 
-// 	// ssfs_fread(3, buff, length);
-//     // ssfs_fwrite(2, adding, strlen1);
-//     // ssfs_fread(2, adding, strlen1);
-//     // ssfs_fwrite(3, append, strlen(append));
-//     return 0;
+    ssfs_fwrite(fd_index1, appending1, strlen(appending1));
+    ssfs_fwseek(fd_index1, 5000);
+    ssfs_fwrite(fd_index1, onechar, strlen(onechar));
 
-// }
+    // ssfs_fread(fd_index3, buffer2, strlen(buffer2));
+
+    // strcat(buffer2, buffer2);
+    // strcat(buffer2, appending2);
+    // ssfs_fwrite(3, buffer2, strlen(buffer2));
+    // ssfs_fread(3, appending2, strlen(appending2));
+
+	// ssfs_fread(3, buff, length);
+    // ssfs_fwrite(2, adding, strlen1);
+    // ssfs_fread(2, adding, strlen1);
+    // ssfs_fwrite(3, append, strlen(append));
+    return 0;
+
+}
