@@ -40,12 +40,9 @@ void mkssfs(int fresh){
         // pass the superblock bufferr
         write_blocks(0, 1, superblock_buffer);
         printf("Writing the filesystem to the disk emulator...\n");
-        read_blocks(0, 1, superblock_buffer);
-        //printf("This is the block size, being read from the block you wrote to: %i\n", superblock_buffer->root_inode_num);
         printf("The superblock was successfully written to the disk!\n");
         free(superblock_buffer);
 
-        //printf("Size checker: %d\n", NUM_ROOTDIR_BLOCKS);
 
         // initialize root directory 
         // Make the file names empty strings
@@ -78,11 +75,10 @@ void mkssfs(int fresh){
         // Copy the root directory into block 1 on the disk
         directory_t* root_dir_buffer = malloc(sizeof(root_dir));
         memcpy(root_dir_buffer, &root_dir, sizeof(root_dir));
-        write_blocks(1, NUM_ROOTDIR_BLOCKS, root_dir_buffer);
-        read_blocks(1, NUM_ROOTDIR_BLOCKS, root_dir_buffer);
-        //printf("This is the content of the block you wrote to %s\n", root_dir_buffer[1].filename); 
+        write_blocks(1, NUM_ROOTDIR_BLOCKS, root_dir_buffer); 
         printf("The root directory was successfully written to the disk!\n");               
         free(root_dir_buffer);
+
         // The root takes up 4 blocks, it is tracked by the FBM
         // The freebitmap has 1024 entries, bit value 1 indicates the data block is unused and 0 indicated used
         for(int i = 0; i < NUM_ROOTDIR_BLOCKS; i++){
@@ -93,36 +89,26 @@ void mkssfs(int fresh){
         // Write the 14 inode blocks on the disk
         inode_t* inode_table_buffer = malloc(sizeof(inode_table));
         memcpy(inode_table_buffer, &inode_table, sizeof(inode_table));
-        write_blocks(1+NUM_ROOTDIR_BLOCKS, SSFS_NUM_INODE_BLOCKS, inode_table_buffer);
-        inode_t* inode_table_buffer_read = malloc(sizeof(inode_table));;
-        read_blocks(1+NUM_ROOTDIR_BLOCKS, SSFS_NUM_INODE_BLOCKS, inode_table_buffer_read);
-        //printf("This is the content of the block you wrote to %d\n", inode_table_buffer_read[1].size);          
+        write_blocks(1+NUM_ROOTDIR_BLOCKS, SSFS_NUM_INODE_BLOCKS, inode_table_buffer);      
         printf("The inode table was successfully written to the disk!\n");  
         free(inode_table_buffer);
-        free(inode_table_buffer_read);
 
         // This puts us at freebitmap[13] = 0
         // inode blocks are tracked by the FBM
         for(int i = NUM_ROOTDIR_BLOCKS; i < SSFS_NUM_INODE_BLOCKS + NUM_ROOTDIR_BLOCKS + 1; i++){
             freebitmap[i] = 0;
         }
+
         // 1026(the total number of blocks) - 1(the superblock) - 4(the number of blocks for the root_dir) - 14(the number of inode blocks) - 1(FBM) 
         // The FBM is not tracked by the FBM
         int data_blocks_count = (1026 - 1 - 4 - 14 - 1);
-        //printf("Size checker: %i\n", sizeof(freebitmap)/sizeof(freebitmap[0]));
+
         // Write the FBM to the blocks on the disk
         unsigned char* freebitmap_buffer = malloc(sizeof(freebitmap));
         memcpy(freebitmap_buffer, &freebitmap, sizeof(freebitmap));
-        write_blocks(1 + NUM_ROOTDIR_BLOCKS + SSFS_NUM_INODE_BLOCKS + data_blocks_count, 1, freebitmap_buffer);
-        unsigned char* freebitmap_buffer_read = malloc(sizeof(freebitmap));
-        read_blocks(1 + NUM_ROOTDIR_BLOCKS + SSFS_NUM_INODE_BLOCKS + data_blocks_count, 1, freebitmap_buffer_read);
-        // printf("This is the content of the block you wrote to %d\n", freebitmap_buffer_read[2]);         
+        write_blocks(1 + NUM_ROOTDIR_BLOCKS + SSFS_NUM_INODE_BLOCKS + data_blocks_count, 1, freebitmap_buffer);     
         printf("The FBM table was successfully written to the disk!\n");
         free(freebitmap_buffer);
-        free(freebitmap_buffer_read);
-
-  
-
 
 
     }
@@ -156,7 +142,7 @@ void mkssfs(int fresh){
         printf("This is the content of the block you wrote to %d\n", inode_table[1].size);          
         free(inode_table_buffer);
 
-        
+        // Retrieve the freebitmap from the disk
         unsigned char* freebitmap_buffer = malloc(sizeof(freebitmap));
         read_blocks(1 + NUM_ROOTDIR_BLOCKS + SSFS_NUM_INODE_BLOCKS + data_blocks_count, 1, freebitmap_buffer);
         memcpy(&freebitmap, freebitmap_buffer, sizeof(freebitmap));        
@@ -188,6 +174,7 @@ void mkssfs(int fresh){
         }
 
     }
+    return;
 }
 // NOT NEEDED
 int ssfs_get_next_file_name(char *fname){
@@ -198,6 +185,9 @@ int ssfs_get_file_size(char* path){
     return 0;
 }
 
+// A helper function i created to add a file to the root directory
+// I give it an inode number and set it's size to 0
+// I then recopy the tables back to the disk
 directory_t add_file(char* filename){
 
     // Create a new directory entry type
@@ -227,12 +217,9 @@ directory_t add_file(char* filename){
     // Re copy the inode table to the disk
     inode_t* inode_table_buffer = malloc(sizeof(inode_table));
     memcpy(inode_table_buffer, &inode_table, sizeof(inode_table));
-    write_blocks(1+NUM_ROOTDIR_BLOCKS, SSFS_NUM_INODE_BLOCKS, inode_table_buffer);
-    inode_t* inode_table_buffer_read = malloc(sizeof(inode_table));;
-    read_blocks(1+NUM_ROOTDIR_BLOCKS, SSFS_NUM_INODE_BLOCKS, inode_table_buffer_read);
-    printf("The inode number %d was successfully copied to the disk, it is now in use, it's size is now %d\n", inode_table_index, inode_table_buffer_read[inode_table_index].size);       
+    write_blocks(1+NUM_ROOTDIR_BLOCKS, SSFS_NUM_INODE_BLOCKS, inode_table_buffer);      
     free(inode_table_buffer);
-    free(inode_table_buffer_read);
+
 
     // Return the directory entry
     return new_entry;
@@ -240,6 +227,8 @@ directory_t add_file(char* filename){
 
 }
 
+
+// A helper function i made
 // Find the next available inode index
 int find_unused_inode_table_index(){
 
@@ -255,6 +244,8 @@ int find_unused_inode_table_index(){
     return inode_table_index;
 
 }
+
+// A helper function I made
 // Find the next available root directory index
 int find_unused_root_dir_index(){
 
@@ -272,6 +263,7 @@ int find_unused_root_dir_index(){
 
 }
 
+// A helper function I made
 // Find the next available index in the file descriptor table
 int find_unused_file_descp_index(){
 
@@ -288,7 +280,8 @@ int find_unused_file_descp_index(){
     return file_descriptor_index;
 
 }
-
+// A helper function I made
+// Find the next available index in the freebitmap index
 int find_free_fbm_index(){
 	
 	int fbm_index = 0;
@@ -305,6 +298,7 @@ int find_free_fbm_index(){
 	return fbm_index;
 
 }
+
 // Search's root directory and returns the index the given filename is at
 int search_root_dir(char* filename){
 
@@ -332,7 +326,9 @@ int search_root_dir(char* filename){
     return rootdir_index;
 
 }
-
+// Out of the 14 blocks the inode can point to, this helper function returns
+// The direct pointer index where data was writting to last
+// i.e. for inode3, it will return 3, meaning inode3.direct[3] = last block that was written to
 int find_last_written_directpointer(inode_t inode){
 
 	int last_written_directpointer;
@@ -386,37 +382,45 @@ int ssfs_fopen(char *name){
             free(filename_buffer);
         }
     }
+
     // If the file exists and already has a file descriptor index, return that file descriptor index 
     if (file_exists == 1){
-    	int existing_fd_index;
-    	for(int i = 0; i < SSFS_NUM_INODES; i++){
-    		if(fd_table[i].inode_num == file.inode_num){
-    			existing_fd_index = i;
-    			break;
-    		}
-    	}
-    	return existing_fd_index;
+
+	    int file_descriptor_index = find_unused_file_descp_index();
+		printf("File descriptor index%d\n", file_descriptor_index);
+		fd_table[file_descriptor_index].inode_num = file.inode_num;
+		fd_table[file_descriptor_index].read_ptr = 0;
+		fd_table[file_descriptor_index].write_ptr = 0;
+
+	    return file_descriptor_index;
+
     }
+
     // If the file does not exist, create it and assign it a file descriptor index for the file 
     if (file_exists == 0){
-        file = add_file(name);
-    }
 
+    file = add_file(name);
 
-
-	int file_descriptor_index = find_unused_file_descp_index();
+    int file_descriptor_index = find_unused_file_descp_index();
+	printf("File descriptor index for the file titled %s is %d\n", file.filename, file_descriptor_index);
 	fd_table[file_descriptor_index].inode_num = file.inode_num;
 	fd_table[file_descriptor_index].read_ptr = 0;
 	fd_table[file_descriptor_index].write_ptr = 0;
 
     return file_descriptor_index;
+
+    }
+
+
+
+
 }
 
 int ssfs_fclose(int fileID){
 
 	file_descriptor_t close_file;
 
-	if (fileID > 0 && fileID < SSFS_NUM_INODES){
+	if (fileID >= 0 && fileID < SSFS_NUM_INODES){
 
 		
 		if (fd_table[fileID].inode_num == -1){
@@ -443,9 +447,18 @@ int ssfs_frseek(int fileID, int loc){
 		return -1;
 	}
 
-
-
 	if (fd_table[fileID].inode_num == -1){
+		return -1;
+	}
+
+	if (loc < 0){
+		return -1;
+	}
+
+	if (loc > 14335){
+		return -1;
+	}
+	if (loc > inode_table[fd_table[fileID].inode_num].size){
 		return -1;
 	}
 
@@ -464,6 +477,16 @@ int ssfs_fwseek(int fileID, int loc){
 		return -1;
 	}
 
+	if (loc < 0){
+		return -1;
+	}
+
+	if (loc > 14335){
+		return -1;
+	}
+	if (loc > inode_table[fd_table[fileID].inode_num].size){
+		return -1;
+	}
 	fd_table[fileID].write_ptr = loc;
 
     return 0;
@@ -473,8 +496,11 @@ int ssfs_fwseek(int fileID, int loc){
 
 int ssfs_fwrite(int fileID, char *buf, int length){
 
+	printf("Trying access file_descriptor %d\n", fileID);
+	if (fileID > SSFS_NUM_BLOCKS-2) {return -1;}
     // If the inode does not exist in the file descriptor table, return and error
     if(fd_table[fileID].inode_num == -1){
+
         return -1;
     }
 
@@ -487,7 +513,7 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     // Find how many data blocks the buffer will require
 	int blocksneeded;
 
-
+	
     // Write to a newly created file and the file size is under 1024 bytes
     if (fileinode.size == 0){
 
@@ -508,7 +534,9 @@ int ssfs_fwrite(int fileID, char *buf, int length){
 	    			buffer[1025] ='\0';
 	    			buffer[1024] = '\0'; 
     		}	    	
+
 	    	write_blocks(block_index, 1, buffer);
+	    	
 	    	freebitmap[block_index] = 0;
 	    	fileinode.direct[i] = block_index;
 	    	inode_direct_index = i;
@@ -540,7 +568,6 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     	int direct_block_index = (int)(file_to_write.write_ptr/ SSFS_BLOCK_SIZE);
     	if (fileinode.direct[direct_block_index] == 0){
     		int free_block = find_free_fbm_index();
-    		printf("assigning the fresh pointer to block %d\n", free_block);
     		fileinode.direct[direct_block_index] = free_block;
     		freebitmap[free_block] = 0;
     	}
@@ -585,9 +612,10 @@ int ssfs_fwrite(int fileID, char *buf, int length){
     		}	
 
 	    	write_blocks(fileinode.direct[direct_block_index], 1, buffer);
-	    	printf("Did we reach\n");
-	    	file_to_write.write_ptr = strlen(buffer) + direct_block_index*SSFS_BLOCK_SIZE;
-	    	printf("Writing... Successfully wrote [%d bytes] to block number %d!\n", strlen(buffer), fileinode.direct[direct_block_index]);	    	
+	    	file_to_write.write_ptr = strlen(buffer) + direct_block_index*SSFS_BLOCK_SIZE;  
+	    	char* read_buffer = malloc(SSFS_BLOCK_SIZE);
+	    	read_blocks(fileinode.direct[direct_block_index], 1, read_buffer);
+	    	printf("This is the content written to block %d: %s", fileinode.direct[direct_block_index], read_buffer);  	
 	    	printf("The write pointer is at block byte %d of 14335.\n", file_to_write.write_ptr);
 	    	if(strlen(buffer)<1024){break;}
 	    	int sum = find_free_fbm_index();
@@ -635,51 +663,130 @@ int ssfs_fwrite(int fileID, char *buf, int length){
 
 int ssfs_fread(int fileID, char *buf, int length){
 
+   	file_descriptor_t file_to_read = fd_table[fileID];
+    inode_t fileinode = inode_table[file_to_read.inode_num];
+
     // If the inode does not exist in the file descriptor table, return and error
     if(fd_table[fileID].inode_num == -1){
         return -1;
     }
 
-    file_descriptor_t file_to_read = fd_table[fileID];
-    inode_t fileinode = inode_table[file_to_read.inode_num];	
+    if (length == 0){
+    	return -1;
+    }
+
+    
+
+ 	
     int block_index;
     int beginIndex = 0;
-    int reached;
+    char* temp = malloc(14335);
+	int direct_block_index = (int)(file_to_read.read_ptr/ SSFS_BLOCK_SIZE);
+	int blocksneeded;
+    int write_left_off = file_to_read.read_ptr%SSFS_BLOCK_SIZE;
+    int bytes_can_write = SSFS_BLOCK_SIZE - write_left_off; 
 
-    // if (fileinode.size <= SSFS_BLOCK_SIZE){
-
-    // 	block_index = fileinode.direct[0];
-    //     char* read_buffer = malloc(SSFS_BLOCK_SIZE);
-    //     read_blocks(block_index, 1, read_buffer);
-    //     printf("This is the content of the file [%s]\n", read_buffer);
-    //     free(read_buffer);
-    // }
+    int read = length;
     if (fileinode.size != 0){
-
+    	// Read the content at each direct pointer
     	for (int i = 0; i < 14; i++){
 
-    			if(fileinode.direct[i] == '\0'){break;}
-		    	block_index = fileinode.direct[i];
-		        char* read_buffer = malloc(SSFS_BLOCK_SIZE);
-		        read_blocks(block_index, 1, read_buffer);
-		        
-		        if(strlen(read_buffer) == 1026){ 
-		        	//NULL TERMINATE
-	    			read_buffer[1025] ='\0';
-	    			read_buffer[1024] = '\0'; 
-    			}
+    		if (fileinode.direct[i] == '\0'){break;}
+    		char* read_buffer = malloc(SSFS_BLOCK_SIZE);
+    		//printf("Block %d contains the following string %s\n", fileinode.direct[i]);
+    		read_blocks(fileinode.direct[i], 1, read_buffer);
+    		//strcat(temp, read_buffer);
+    		//Please comment the following line when running the MANUAL tests
+    		memcpy(buf, read_buffer, length);
+    		printf("Block %d contains the following string %s\n", fileinode.direct[i], read_buffer);
+    		file_to_read.read_ptr = strlen(read_buffer) + i*SSFS_BLOCK_SIZE;
+    		free(read_buffer);
 
-    			if(strlen(read_buffer) == 0){break;}
-		        printf("Reading... Block %d has %zu bytes\n", block_index, strlen(read_buffer));
-		        free(read_buffer);
-        	
     	}
+ // Attempt at reading mutiple block algorithm for a specific read_ptr
+
+    	// blocksneeded = length/SSFS_BLOCK_SIZE + 1;
+    	// int start = 0;
+    	// int toread = length;
+
+    	// for (int i = 0; i < blocksneeded; i++){
+
+    	// 		block_index = fileinode.direct[direct_block_index];
+
+    	// 		if(block_index == '\0'){break;}
+		    	
+		   //      char* read_buffer = malloc(SSFS_BLOCK_SIZE);
+		   //      read_blocks(block_index, 1, read_buffer);
+		   //      read_buffer[strlen(read_buffer)] = '\0';
+		        
+		   //      if(strlen(read_buffer) == 1026){ 
+		   //      	//NULL TERMINATE
+	    // 			read_buffer[1025] ='\0';
+	    // 			read_buffer[1024] = '\0'; 
+    	// 		}
+
+    	// 		// if(strlen(read_buffer) == 0){break;}
+
+    	// 		// if (strlen(buf) + strlen(read_buffer) > length){
+    	// 		// 	int copyamt = length - strlen(buf);
+    	// 		// 	char* newone; 
+    	// 		// 	strncpy(newone, read_buffer, copyamt);
+    	// 		// 	strcat(buf, newone);
+
+    	// 		// }
+    	// 		// else{
+    	// 		// 	strcat(buf, read_buffer);
+    	// 		// }
+    	// 		//memcpy(buf+beginIndex, read_buffer, length);
+
+
+    	// 		// memcpy(buf, temp, length);
+
+    	// 		// Store all the content from the blocks
+    	// 		// Then truncate later
+    	// 		// if (toread < 1024){
+    	// 		// 	memcpy(buf+start, read_buffer+beginIndex, toread);
+    	// 		// 	file_to_read.read_ptr = strlen(read_buffer) + direct_block_index*SSFS_BLOCK_SIZE;
+    	// 		// 	break;
+    	// 		// }
+
+
+    	// 		// else if (toread > 1024){
+    	// 		// 	toread = toread - 1024;
+    	// 		// 	memcpy(buf+start, read_buffer+beginIndex, 1024);
+    	// 		// 	start = start + 1024;
+    	// 		// 	beginIndex = beginIndex + 1024;
+    	// 		// 	toread = toread - 1024;
+    	// 		// }
+    			
+    	// 		memcpy(buf, read_buffer, length);
+
+    	// 		// Update the read pointer
+    	// 		file_to_read.read_ptr = strlen(read_buffer) + direct_block_index*SSFS_BLOCK_SIZE;
+		   //      printf("Reading... Successfully read %s from block %d\n", read_buffer, block_index);
+		   //      direct_block_index = direct_block_index + 1;
+		   //      beginIndex = beginIndex + length;
+		   //      free(read_buffer);
+        	
+    	// }
+    	// int cutoff = strlen(temp) - length;
+
+    	// printf("%zu\n", strlen(temp));
+    	// char* substring = temp + length - cutoff;
+    	// printf("%zu\n", strlen(temp));
+    	// strcpy(buf, substring);
+    	// printf("%zu\n", strlen(buf));
+    	//collect the string from the amount of blocks that had to be read
+    	//then truncate it to the proper size and 
+    	//memcpy(buf, temp, length);
     }
 
     else if (fileinode.size == 0){
     	printf("The file is empty!\n");
     }
 
+
+    fd_table[fileID] = file_to_read;
 
 
     return length;
@@ -744,56 +851,54 @@ int ssfs_remove(char *file){
     return 0;
 }
 
-int main(int argc, char *argv[]){
-    mkssfs(1);
+// Uncomment for manual testing
+// int main(int argc, char *argv[]){
 
-    // Adding a file for testing     
-    int fd_index1 = ssfs_fopen("arunen");
-    int fd_index2 = ssfs_fopen("alex");
-    int fd_index3 = ssfs_fopen("oliver");
+//     mkssfs(1);
 
-    // Write to a newly created file, string under 1024 bytes
-	char *buffer1 = "This is a test, let's see if it works!";
-	ssfs_fwrite(fd_index2,buffer1,strlen(buffer1));
-    // ssfs_fread(2,buffer1,strlen(buffer1));
+//     // Test case 1: opening a new file  
+//     int fd_index1 = ssfs_fopen("arunen");
+//     int fd_index2 = ssfs_fopen("alex");
+//     int fd_index3 = ssfs_fopen("oliver");
 
-    // Write to an existing block where the file size is under 1024 bytes
-    char* appending1 = "Adding this to file 2";
-    //ssfs_fwrite(fd_index2, appending1, strlen(appending1));
-    // ssfs_fread(2, appending1, strlen(appending1));
-    char* onechar = "caca";
-    // Write more than 1024 bytes to a file, must use multiple data blocks
-    // String size: 1917
-    char* buffer2 = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen\n";
-	char* copy = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
-    ssfs_fwrite(fd_index3, copy, strlen(copy));
-	// ssfs_fread(3, buffer2, strlen(buffer2));
+//     // Test case 2: Write to a newly created file, string under 1024 bytes
+// 	char *buffer1 = "This is a test, let's see if it works!";
+// 	ssfs_fwrite(fd_index2,buffer1,strlen(buffer1));
 
-	// Write to an existing file where adding the buffer will overflow into another block 
-    // String size: 321
-    char* appending2 = "At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
-    //ssfs_fwrite(3, appending2, strlen(appending2));
-    ssfs_fwrite(fd_index2, buffer2, strlen(buffer2));
-    ssfs_fwrite(fd_index2, copy, strlen(copy));
+//     // ssfs_fread(2,buffer1,strlen(buffer1));
+
+//     // Test case 3: Write to an existing block where the file size is under 1024 bytes
+//     char* appending1 = "Adding this to file 2";
+//     ssfs_fwrite(fd_index2, appending1, strlen(appending1));
+//     // ssfs_fread(2, appending1, strlen(appending1));
+//     char* onechar = "okay";
+
+//     // Test case 4
+//     // Write more than 1024 bytes to a file, must use multiple data blocks
+//     // String size: 1917
+//     char* buffer2 = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen\n";
+// 	ssfs_fwrite(fd_index2, buffer2, strlen(buffer2));
+
+// 	char* copy = "Atlassian Austin, TX Dear Atlassian, I am a third-year Software Engineering (Minor in Musical Technology) student at McGill University and I am applying for the Summer 2017 Software Development Internship. I should be grateful for the opportunity as an intern because I believe this position will give me an chance to apply the programming skills that I have learned at school as well as acquire a great deal of knowledge and hands on experience. I am a quick learner and I pay attention to detail. I am passionate about programming (Java, JavaScript, Python), quality software, and music (composition and performance). I have a great deal of experience in the software development field since I did an 8-month co-op at Nuance Communications working in the Professional Services team where we deployed embedded speech dialog systems in vehicles and I performed software testing and requirements validation. I have a great interest in Software collaboration tools. Whether I am working on a project at school or work, I always find myself using software collaboration tools such as, GitHub, JIRA, Basecamp, Slack, etc, and I am very impressed with the software and business impact they make. I am greatly passionate about technology, and I aspire to work for a company that can use technology to make a powerful development impact. I enjoy approaching challenging problems and coming up with elegant solutions and I believe I will be an asset to the Atlassian team. I have heard many great things about working at Atlassian, such as a dynamic work environment, challenging problems, and great benefits. I believe my skill set matches what Atlassian is looking for. Feel free to contact me at 514-951-4128 or email me at arunen.chellan@mail.mcgill.ca if you would like to further discuss this position. I have the enthusiasm and determination to make a success of this opportunity. Thank you for your time Best, Arunen At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
+//     ssfs_fwrite(fd_index3, copy, strlen(copy));
+// 	//ssfs_fread(fd_index3, copy, strlen(copy));
+
+// 	// Test case 5: Write to an existing file where adding the buffer will overflow into another block 
+//     char* appending2 = "At creation, mkssfs() sets up super block, FBM, i-node file (the hidden file containing all the i-nodes), and the root directory. Note that the root directory is not holding any files at startup. You still need to allocate the i-node 0 to point towards the data blocks (note we are not restricting the root directory to a";
+//     //ssfs_fwrite(3, appending2, strlen(appending2));
+//     ssfs_fwrite(fd_index2, buffer2, strlen(buffer2));
+//     // Reading a multiple block file
+//     ssfs_fread(fd_index2, buffer2, strlen(buffer2));
+
+//     // Test case 6: write a file
+//     // Then change the seek pointer to 5000
+//     // Then write again and check the length
+//     ssfs_fwrite(fd_index1, appending1, strlen(appending1));
+//     ssfs_fwseek(fd_index1, 5000);
+//     ssfs_fwrite(fd_index1, onechar, strlen(onechar));
+//     ssfs_fread(fd_index1, appending1, strlen(appending1));
 
 
-    ssfs_fwrite(fd_index3, buffer2, strlen(buffer2));
+//     return 0;
 
-    ssfs_fwrite(fd_index1, appending1, strlen(appending1));
-    ssfs_fwseek(fd_index1, 5000);
-    ssfs_fwrite(fd_index1, onechar, strlen(onechar));
-
-    // ssfs_fread(fd_index3, buffer2, strlen(buffer2));
-
-    // strcat(buffer2, buffer2);
-    // strcat(buffer2, appending2);
-    // ssfs_fwrite(3, buffer2, strlen(buffer2));
-    // ssfs_fread(3, appending2, strlen(appending2));
-
-	// ssfs_fread(3, buff, length);
-    // ssfs_fwrite(2, adding, strlen1);
-    // ssfs_fread(2, adding, strlen1);
-    // ssfs_fwrite(3, append, strlen(append));
-    return 0;
-
-}
+// }

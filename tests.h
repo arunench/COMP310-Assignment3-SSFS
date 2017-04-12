@@ -13,7 +13,7 @@
  * upper-case letters and periods ('.') characters. Feel free to
  * change this if your implementation differs.
  */
-#define MAX_FNAME_LENGTH 10   /* Assume at most 20 characters (16.3) */
+#define MAX_FNAME_LENGTH 21   /* Assume at most 20 characters (16.3) */
 
 /* The maximum number of files to attempt to open or create.  NOTE: we
  * do not _require_ that you support this many files. This is just to
@@ -24,7 +24,7 @@
  * support much shorter or larger files for some reason, feel free to
  * reduce this value.
  */
-#define MAX_BYTES 30000 // 16 * 30000
+#define MAX_BYTES 14335 // 16 * 30000
 //The maximal number of bytes I will write for a single write
 #define MAX_WRITE_BYTE 2025
 
@@ -33,8 +33,8 @@
 #define ABS_CAP_FD        4092
 #define ABS_CAP_FILE_SIZE 2000000
 
-static char test_str[] = "Graphic Card is life. I need two gtx 1080 ti for life. As a side note, it's quite obvious when people copy from github. Usually there's more than one guy copying for the same repository.\n";
-
+static char test_str[] = "Graphic Card is life. I need a 1080 for Christmas. As a side note, it's quite obvious when people copy from github. Usually there's more than one guy copying for the same repository.\n";
+ 
 //Random Text Generators
 char *rand_name();
 
@@ -61,10 +61,6 @@ int test_close_files(char **file_names, int *file_id, int num_file, int *err_no)
 int test_open_new_files(char **file_names, int *file_id, int num_file, int *err_no);
 int test_open_old_files(char **file_names, int *file_id, int num_file, int *err_no);
 int test_overflow_open(int *file_id, int *file_sizes, int *write_ptr, char **file_names, char **write_buf, int num_file, int *err_no);
-
-//Name + Size functions
-int test_get_file_name(char **file_names, int num_file, int *err_no);
-int test_get_file_size(int *file_size, char **file_names, int num_file, int *err_no);
 
 //Test persistence
 int test_persistence(int *error, int write_length);

@@ -10,7 +10,7 @@
 #include <math.h>
 #include "disk_emu.h"
 
-#define SSFS_MAX_FILENAME 16
+#define SSFS_MAX_FILENAME 21
 #define SSFS_BLOCK_SIZE 1024
 #define SSFS_MAGIC_NUM 4
 #define SSFS_FD_ENTRIES 1024
@@ -36,7 +36,7 @@ typedef struct{
 
 
 typedef struct{
-	unsigned char bytes [SSFS_BLOCK_SIZE];
+	unsigned char bytes[SSFS_BLOCK_SIZE];
 } block_t;
 
 // typedef struct{
@@ -72,8 +72,8 @@ typedef struct{
 //Functions you should implement. 
 //Return -1 for error besides mkssfs
 void mkssfs(int fresh);
-int ssfs_get_next_file_name(char *fname);
-int ssfs_get_file_size(char* path);
+int ssfs_get_next_file_name(char *fname); //Removed from assignment
+int ssfs_get_file_size(char* path); //Removed from assignment
 int ssfs_fopen(char *name);
 int ssfs_fclose(int fileID);
 int ssfs_frseek(int fileID, int loc);

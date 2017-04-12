@@ -6,8 +6,8 @@ For all tests, -1 is considered error and 0 is considered success.
 int simple_test(){
   printf("\n-------------------------------\nInitializing Simple test.\n--------------------------------\n\n");
   char **write_buf;
-  int file_id[ABS_CAP_FD];
-  char *file_names[ABS_CAP_FD];
+  int *file_id = calloc(ABS_CAP_FD, sizeof(int));
+  char **file_names = calloc(ABS_CAP_FD, sizeof(char *));
   int *write_ptr = calloc(ABS_CAP_FD, sizeof(int));
   int *file_size = calloc(ABS_CAP_FD, sizeof(int));
   int num_file = 5;
@@ -47,10 +47,6 @@ int simple_test(){
   test_simple_write_files(file_id, file_size, write_ptr, write_buf, num_file, &err_no);
   test_read_all_files(file_id, file_size, write_buf, num_file, &err_no);
   
-  //test names + size
-  test_get_file_name(file_names, num_file, &err_no);
-  test_get_file_size(file_size, file_names, num_file, &err_no);
-  
   printf("\n-------------------------------\nSimple test Finished.\nCurrent Error Num: %d\n--------------------------------\n\n", err_no);
 
   free(file_size);
@@ -62,6 +58,8 @@ int simple_test(){
   for(int i = 0; i < num_file; i++){
     free(file_names[i]);
   }
+  free(file_id);
+  free(file_names);
   return 0;
 }
 
